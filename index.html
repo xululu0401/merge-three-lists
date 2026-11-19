@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合三份名单</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f2f4f1; color: #24292a; line-height: 1.6; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 26px; letter-spacing: 1px; }
+  .lead { color: #5b6462; font-size: 14px; margin: 4px 0 14px; }
+  .card { background: #fff; border-radius: 10px; padding: 14px; border: 1px solid #dde3df; min-width: 0; margin-bottom: 14px; }
+  .card h2 { font-size: 15px; color: #5b6462; font-weight: 600; margin-bottom: 8px; }
+  .tabs { display: flex; gap: 0; margin-bottom: 12px; border-bottom: 1px solid #dde3df; }
+  .tabs button { border: none; background: none; color: #5b6462; border-bottom: 3px solid transparent; border-radius: 0; padding: 6px 14px; font-size: 15px; }
+  .tabs button.on { color: #1f5b57; border-bottom-color: #1f5b57; font-weight: 700; }
+  .names { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 640px) { .names, .grid3 { grid-template-columns: minmax(0, 1fr); } }
+  label.f { display: block; font-size: 13px; color: #434b4a; min-width: 0; }
+  label.f input, label.f textarea { display: block; width: 100%; margin-top: 3px; padding: 6px 8px; font-size: 16px; border: 1px solid #c9d1cd; border-radius: 6px; background: #fcfdfc; font-family: inherit; }
+  label.f textarea { height: 190px; resize: vertical; font-size: 14px; line-height: 1.5; }
+  .cnt { font-size: 12px; color: #7a8381; }
+  input.bad, textarea.bad { border-color: #b3402e !important; background: #fff3ef !important; }
+  .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+  .opt { font-size: 13px; color: #434b4a; display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+  button { font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 6px; border: 1px solid #1f5b57; background: #1f5b57; color: #fff; cursor: pointer; }
+  button.ghost { background: #fff; color: #1f5b57; }
+  .sub { font-size: 13px; color: #5b6462; margin: 12px 0 6px; }
+  #error { display: none; background: #fff3ef; border: 1px solid #e3b4a6; color: #8f2f1d; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; overflow-wrap: anywhere; }
+  #summary { font-size: 21px; font-weight: 700; overflow-wrap: anywhere; color: #1f5b57; }
+  #summary.bad { color: #9a3b1c; }
+  #facts { margin: 8px 0 0 18px; font-size: 14px; color: #434b4a; } #facts li { margin: 3px 0; overflow-wrap: anywhere; }
+  .twocol { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 14px; align-items: start; }
+  @media (max-width: 760px) { .twocol { grid-template-columns: minmax(0, 1fr); } }
+  #venn { width: 100%; max-width: 460px; height: auto; display: block; margin: 0 auto; }
+  .tblwrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  th, td { padding: 6px 5px; border-top: 1px solid #e6ebe8; text-align: left; overflow-wrap: anywhere; vertical-align: top; }
+  th:nth-child(1), td:nth-child(1) { width: 38%; } th:nth-child(2), td:nth-child(2) { width: 20%; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  td:nth-child(2) { overflow-wrap: normal; word-break: keep-all; }
+  td:nth-child(3) { color: #5b6462; }
+  @media (max-width: 640px) { th:nth-child(1), td:nth-child(1) { width: 36%; } th:nth-child(2), td:nth-child(2) { width: 30%; } table { font-size: 12px; } }
+  thead th { color: #5b6462; font-weight: 600; border-top: none; font-size: 12px; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: 0; }
+  .sugs { list-style: none; }
+  .sugs li { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; padding: 8px 0; border-top: 1px solid #e6ebe8; font-size: 14px; }
+  .sugs li:first-child { border-top: none; } .sugs li span { overflow-wrap: anywhere; min-width: 0; }
+  .sugs li button { flex: none; }
+  .dl { display: flex; gap: 6px; flex-wrap: wrap; }
+  .rules { font-size: 13px; color: #434b4a; } .rules p { margin: 4px 0; }
+  .note { font-size: 12px; color: #7a8381; margin-top: 8px; }
+  #roster { font-size: 13px; color: #434b4a; overflow-wrap: anywhere; max-height: 160px; overflow-y: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>合三份名单</h1>
+  <p class="lead">三个群、三场活动、三张报名表，人数各报各的，同一个人在两份里就被算了两次。贴上三份名单，它去掉重复，告诉你合起来多少个不同的人、谁只在哪一份；手上只有人数也能算，缺了「三份都在的有几人」就给你一个范围，数字对不上会指出哪里对不上、改哪个数最省事。</p>
+
+  <div class="card">
+    <div class="tabs"><button id="tabLists">贴名单</button><button id="tabCounts">只有人数</button></div>
+    <div class="names">
+      <label class="f">第 1 份叫<input id="name0" maxlength="20"></label>
+      <label class="f">第 2 份叫<input id="name1" maxlength="20"></label>
+      <label class="f">第 3 份叫<input id="name2" maxlength="20"></label>
+    </div>
+    <div id="paneLists">
+      <div class="grid3">
+        <label class="f"><span id="lbl0"></span> 名单 <span class="cnt" id="cnt0"></span><textarea id="list0" placeholder="每行一个名字，逗号顿号分隔也行"></textarea></label>
+        <label class="f"><span id="lbl1"></span> 名单 <span class="cnt" id="cnt1"></span><textarea id="list1" placeholder="每行一个名字"></textarea></label>
+        <label class="f"><span id="lbl2"></span> 名单 <span class="cnt" id="cnt2"></span><textarea id="list2" placeholder="每行一个名字（只有两份就留空）"></textarea></label>
+      </div>
+      <label class="opt"><input type="checkbox" id="ignoreCase"> 不分大小写（Amy 和 amy 算同一个人）</label>
+    </div>
+    <div id="paneCounts">
+      <p class="sub">各有多少人</p>
+      <div class="grid3">
+        <label class="f"><span class="ln0"></span><input id="A" inputmode="numeric"></label>
+        <label class="f"><span class="ln1"></span><input id="B" inputmode="numeric"></label>
+        <label class="f"><span class="ln2"></span><input id="C" inputmode="numeric"></label>
+      </div>
+      <p class="sub">两两都在的有多少人（包括三份都在的）</p>
+      <div class="grid3">
+        <label class="f"><span class="ln0"></span> 和 <span class="ln1"></span><input id="AB" inputmode="numeric"></label>
+        <label class="f"><span class="ln0"></span> 和 <span class="ln2"></span><input id="AC" inputmode="numeric"></label>
+        <label class="f"><span class="ln1"></span> 和 <span class="ln2"></span><input id="BC" inputmode="numeric"></label>
+      </div>
+      <p class="sub">三份都在的有多少人（不知道就留空）</p>
+      <div class="grid3"><label class="f">三份都在<input id="t" inputmode="numeric" placeholder="不知道"></label></div>
+    </div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div id="error"></div>
+
+  <div id="out" style="display:none;">
+    <div class="card">
+      <div id="summary"></div>
+      <ul id="facts"></ul>
+    </div>
+    <div class="card twocol" id="figure">
+      <div><h2>三个圈各几人</h2><svg id="venn" viewBox="0 0 440 400" role="img" aria-label="三圈图"></svg><p class="note">圈的大小不按人数画，只看每一块里的数字。</p></div>
+      <div><h2>七块明细</h2><div class="tblwrap"><table id="regions"><thead><tr></tr></thead><tbody></tbody></table></div><p class="note" id="tblnote"></p></div>
+    </div>
+    <div class="card" id="sugCard">
+      <h2>接下来可以</h2>
+      <ul class="sugs" id="sugs"></ul>
+    </div>
+    <div class="card" id="rosterCard">
+      <h2>合并后的名单</h2>
+      <div id="roster"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>导出与保存</h2>
+    <div class="dl">
+      <button id="dlPNG">结果卡 PNG</button>
+      <button class="ghost" id="dlCSV">CSV</button>
+      <button class="ghost" id="dlMD">Markdown</button>
+      <button class="ghost" id="dlJSON">JSON 备份</button>
+      <button class="ghost" id="reset">恢复默认例子</button>
+    </div>
+    <p class="note">内容自动保存在这台设备的浏览器里，刷新后还在；名单不上传、不联网。</p>
+  </div>
+
+  <div class="card rules">
+    <h2>怎么算的、算不了什么</h2>
+    <p><b>贴名单</b>：每份先去掉首尾空格、把全角字母括号折成半角（可选不分大小写），表内重复只算一次，再看每个人在哪几份里，分到七块。</p>
+    <p><b>只有人数</b>：合起来 = A + B + C − AB − AC − BC + 三份都在（容斥）。七块都不能是负数，所以三份都在的至少是 max(0, AB+AC−A, AB+BC−B, AC+BC−C)，最多是三个两两重叠里最小的那个；不知道它时，合起来就在这两头之间。数字对不上时，逐个数单独算「别的不动它能填多少」，给出离现在最近的那个。</p>
+    <p>同名不同人、同一个人用了不同叫法（真名和昵称），工具认不出来。人数页只用你填的数，数本身估错了它发现不了，除非几个数互相矛盾。默认例子的群名、人数、昵称都是虚构的。</p>
+  </div>
+</div>
+
+  <script>
+/* 合三份名单 · 计算层（纯函数，Node 与浏览器共用）
+ * 两种用法：
+ *   lists  —— 贴三份名单，按统一口径去重后精确算七块；
+ *   counts —— 只有人数：三份人数 A B C、两两重叠 AB AC BC、三份都在 t（可留空）→ 容斥 + 可能范围 + 对不上时的改法。
+ * 七块编号用位掩码：A=1, B=2, C=4；7 = 三份都在。 */
+(function (root) {
+  'use strict';
+  const MAX_N = 10000000;
+  const MAX_LINES = 20000;
+  const MAX_NAME = 40;
+  const ORDER = [7, 3, 5, 6, 1, 2, 4];
+  const VARS = ['A', 'B', 'C', 'AB', 'AC', 'BC', 't'];
+
+  function fail(msg, field) { const e = new Error(msg); e.field = field; throw e; }
+  function fmt(n) {
+    const s = String(Math.round(n));
+    return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function readNames(names) {
+    const out = [];
+    for (let i = 0; i < 3; i++) {
+      const s = String((names && names[i]) == null ? '' : names[i]).trim().replace(/\s+/g, ' ');
+      if (s === '') fail('第 ' + (i + 1) + ' 份名单的名字没填', 'name' + i);
+      if (s.length > 12) fail('名单名字最多 12 个字（「' + s.slice(0, 14) + '…」太长）', 'name' + i);
+      out.push(s);
+    }
+    if (out[0] === out[1] || out[0] === out[2] || out[1] === out[2]) fail('三份名单的名字不能重复（现在是 ' + out.join(' / ') + '）', out[0] === out[1] || out[0] === out[2] ? 'name0' : 'name1');
+    return out;
+  }
+
+  function regionLabel(mask, N) {
+    if (mask === 7) return '三份都在';
+    const ins = [0, 1, 2].filter((i) => mask & (1 << i)).map((i) => N[i]);
+    return '只在' + ins.join('和');
+  }
+
+  /* ── 只有人数 ── */
+  function readCount(v, label, field, allowEmpty) {
+    const s = typeof v === 'number' ? String(v) : String(v == null ? '' : v).trim().replace(/[,，\s]/g, '');
+    if (s === '') { if (allowEmpty) return null; fail(label + '没填', field); }
+    if (!/^\d+$/.test(s)) fail(label + '要填 0 或正整数（现在是「' + String(v).slice(0, 20) + '」）', field);
+    const n = Number(s);
+    if (n > MAX_N) fail(label + '最多 ' + fmt(MAX_N) + ' 人（现在是 ' + fmt(n) + '）', field);
+    return n;
+  }
+
+  /* 七块，按 t 给出 */
+  function regionsAt(x, t) {
+    return {
+      7: t,
+      3: x.AB - t, 5: x.AC - t, 6: x.BC - t,
+      1: x.A - x.AB - x.AC + t,
+      2: x.B - x.AB - x.BC + t,
+      4: x.C - x.AC - x.BC + t
+    };
+  }
+  function boundsT(x) {
+    const lo = Math.max(0, x.AB + x.AC - x.A, x.AB + x.BC - x.B, x.AC + x.BC - x.C);
+    const hi = Math.min(x.AB, x.AC, x.BC);
+    return { lo, hi };
+  }
+  /* 这组数（t 可为 null）能不能成立 */
+  function consistent(x) {
+    const b = boundsT(x);
+    if (x.t == null) return b.lo <= b.hi;
+    return x.t >= b.lo && x.t <= b.hi;
+  }
+
+  /* 其他数不动，只改变量 v，它能取的整数区间；取不到返回 null。
+   * 所有约束对 v 都是一次的：先在 v=0 与 v=1 两点取值得到斜率与截距。 */
+  function rangeFor(x, v) {
+    function lowers(y) { return [0, y.AB + y.AC - y.A, y.AB + y.BC - y.B, y.AC + y.BC - y.C]; }
+    function uppers(y) { return [y.AB, y.AC, y.BC]; }
+    /* 约束统一写成 g(y) ≥ 0 */
+    function gs(y) {
+      if (y.t == null) {
+        const out = [];
+        lowers(y).forEach((L) => uppers(y).forEach((U) => out.push(U - L)));
+        return out;
+      }
+      const r = regionsAt(y, y.t);
+      return ORDER.map((m) => r[m]);
+    }
+    const y0 = Object.assign({}, x, { [v]: 0 }), y1 = Object.assign({}, x, { [v]: 1 });
+    const g0 = gs(y0), g1 = gs(y1);
+    let lo = 0, hi = MAX_N;
+    for (let k = 0; k < g0.length; k++) {
+      const a = g1[k] - g0[k], b = g0[k]; /* a·v + b ≥ 0 */
+      if (a === 0) { if (b < 0) return null; }
+      else if (a > 0) lo = Math.max(lo, Math.ceil(-b / a));
+      else hi = Math.min(hi, Math.floor(b / -a));
+    }
+    return lo <= hi ? { lo, hi } : null;
+  }
+
+  function varLabel(v, N) {
+    return { A: N[0] + '人数', B: N[1] + '人数', C: N[2] + '人数', AB: N[0] + '∩' + N[1], AC: N[0] + '∩' + N[2], BC: N[1] + '∩' + N[2], t: '三份都在' }[v];
+  }
+
+  /* 对不上的原因（给人看） */
+  function reasons(x, N) {
+    const out = [];
+    const b = boundsT(x);
+    if (x.t != null) {
+      const r = regionsAt(x, x.t);
+      ORDER.forEach((m) => {
+        if (r[m] < 0) out.push(regionLabel(m, N) + '算出来是 ' + r[m] + ' 人，不能是负数');
+      });
+      return out;
+    }
+    const L = [
+      [x.AB + x.AC - x.A, N[0] + '∩' + N[1] + ' ' + fmt(x.AB) + ' + ' + N[0] + '∩' + N[2] + ' ' + fmt(x.AC) + ' − ' + N[0] + ' ' + fmt(x.A)],
+      [x.AB + x.BC - x.B, N[0] + '∩' + N[1] + ' ' + fmt(x.AB) + ' + ' + N[1] + '∩' + N[2] + ' ' + fmt(x.BC) + ' − ' + N[1] + ' ' + fmt(x.B)],
+      [x.AC + x.BC - x.C, N[0] + '∩' + N[2] + ' ' + fmt(x.AC) + ' + ' + N[1] + '∩' + N[2] + ' ' + fmt(x.BC) + ' − ' + N[2] + ' ' + fmt(x.C)]
+    ].filter((p) => p[0] === b.lo && p[0] > 0)[0];
+    const U = [[x.AB, N[0] + '∩' + N[1]], [x.AC, N[0] + '∩' + N[2]], [x.BC, N[1] + '∩' + N[2]]].filter((p) => p[0] === b.hi)[0];
+    out.push('三份都在的至少要 ' + fmt(b.lo) + ' 人（' + (L ? L[1] : '') + ' = ' + fmt(b.lo) + '，两块重叠加起来比这一份还多，多出来的只能是三份都在的人），可它又不能超过最小的两两重叠 ' + U[1] + ' ' + fmt(U[0]) + ' 人');
+    return out;
+  }
+
+  function fixes(x, N) {
+    const list = [];
+    VARS.forEach((v) => {
+      if (v === 't' && x.t == null) return;
+      const r = rangeFor(x, v);
+      if (!r) { list.push({ v, label: varLabel(v, N), possible: false }); return; }
+      const cur = x[v];
+      const to = cur < r.lo ? r.lo : (cur > r.hi ? r.hi : cur);
+      list.push({ v, label: varLabel(v, N), possible: true, lo: r.lo, hi: r.hi, from: cur, to, delta: to - cur });
+    });
+    if (x.t != null) {
+      /* 也可以把「三份都在」清空，只看范围 */
+      const y = Object.assign({}, x, { t: null });
+      if (consistent(y)) list.push({ v: 't', label: '三份都在', possible: true, clear: true, from: x.t, to: null, delta: null });
+    }
+    const ok = list.filter((f) => f.possible && !f.clear).sort((a, b) => Math.abs(a.delta) - Math.abs(b.delta) || VARS.indexOf(a.v) - VARS.indexOf(b.v));
+    return { moves: ok, clear: list.filter((f) => f.clear), impossible: list.filter((f) => !f.possible).map((f) => f.label) };
+  }
+
+  function fromCounts(inp) {
+    const N = readNames(inp.names);
+    const c = inp.counts || {};
+    const x = {
+      A: readCount(c.A, N[0] + '人数', 'A'), B: readCount(c.B, N[1] + '人数', 'B'), C: readCount(c.C, N[2] + '人数', 'C'),
+      AB: readCount(c.AB, N[0] + '∩' + N[1], 'AB'), AC: readCount(c.AC, N[0] + '∩' + N[2], 'AC'), BC: readCount(c.BC, N[1] + '∩' + N[2], 'BC'),
+      t: readCount(c.t, '三份都在', 't', true)
+    };
+    const S = x.A + x.B + x.C;
+    const b = boundsT(x);
+    const U0 = x.A + x.B + x.C - x.AB - x.AC - x.BC;
+    const res = { mode: 'counts', names: N, input: x, sum: S, bounds: b };
+    if (!consistent(x)) {
+      res.ok = false;
+      res.reasons = reasons(x, N);
+      res.fixes = fixes(x, N);
+      res.summary = '这组数对不上，合不出来';
+      res.facts = res.reasons.slice();
+      return res;
+    }
+    res.ok = true;
+    if (x.t != null) {
+      res.exact = true;
+      res.regions = regionsAt(x, x.t);
+      res.union = U0 + x.t;
+      res.summary = '三份合起来 ' + fmt(res.union) + ' 人';
+    } else {
+      res.exact = b.lo === b.hi;
+      res.regionsLo = regionsAt(x, b.lo);
+      res.regionsHi = regionsAt(x, b.hi);
+      res.unionLo = U0 + b.lo; res.unionHi = U0 + b.hi;
+      if (res.exact) { res.regions = res.regionsLo; res.union = res.unionLo; res.summary = '三份合起来 ' + fmt(res.union) + ' 人'; }
+      else res.summary = '三份合起来在 ' + fmt(res.unionLo) + '–' + fmt(res.unionHi) + ' 人之间';
+    }
+    const facts = [];
+    const u = res.union != null ? res.union : null;
+    facts.push('三份人数相加是 ' + fmt(S) + '，' + (u != null ? '比合起来的人数多 ' + fmt(S - u) + '，多出来的是同一个人在两三份里被重复算的次数' : '比合起来的人数多 ' + fmt(S - res.unionHi) + '–' + fmt(S - res.unionLo) + '，多出来的是同一个人被重复算的次数'));
+    if (x.t == null) {
+      if (res.exact) facts.push('三份都在的没填，但这组数只允许它是 ' + fmt(b.lo) + ' 人，所以结果是确定的');
+      else {
+        facts.push('差别全在「三份都在的有几人」：没填时它可能是 ' + fmt(b.lo) + '–' + fmt(b.hi) + ' 人，每多 1 人，合起来就多 1 人');
+        facts.push('下限 ' + fmt(b.lo) + (b.lo === 0 ? '：没有任何一份被两块重叠挤满' : '：有一份被两块重叠挤满了，多出来的只能是三份都在的人') + '；上限 ' + fmt(b.hi) + '：不能超过最小的两两重叠');
+      }
+    } else {
+      const r = res.regions;
+      facts.push('正好只在一份的 ' + fmt(r[1] + r[2] + r[4]) + ' 人，正好在两份的 ' + fmt(r[3] + r[5] + r[6]) + ' 人，三份都在的 ' + fmt(r[7]) + ' 人');
+      if (b.hi > b.lo) facts.push('如果三份都在的其实不是 ' + fmt(x.t) + ' 人：这组数允许它是 ' + fmt(b.lo) + '–' + fmt(b.hi) + ' 人，合起来会在 ' + fmt(U0 + b.lo) + '–' + fmt(U0 + b.hi) + ' 人之间');
+      else facts.push('这组数只允许三份都在的是 ' + fmt(b.lo) + ' 人，填别的都对不上');
+    }
+    res.facts = facts;
+    return res;
+  }
+
+  /* ── 贴名单 ── */
+  function normKey(s, ignoreCase) {
+    let k = s.normalize('NFKC').trim().replace(/\s+/g, ' ');
+    if (ignoreCase) k = k.toLowerCase();
+    return k;
+  }
+  function splitList(text) {
+    return String(text == null ? '' : text).split(/\r?\n|[,，、;；\t]/).map((s) => s.trim().replace(/\s+/g, ' ')).filter((s) => s !== '');
+  }
+  function fromLists(inp) {
+    const N = readNames(inp.names);
+    const ignoreCase = inp.ignoreCase !== false;
+    const raw = [0, 1, 2].map((i) => splitList((inp.lists || [])[i]));
+    const total = raw[0].length + raw[1].length + raw[2].length;
+    if (total === 0) fail('三份名单都是空的，至少贴一份（每行一个名字）', 'list0');
+    if (total > MAX_LINES) fail('三份合计最多 ' + fmt(MAX_LINES) + ' 个名字（现在是 ' + fmt(total) + '）', 'list0');
+    raw.forEach((L, i) => L.forEach((s) => { if (s.length > MAX_NAME) fail(N[i] + '里有个名字超过 ' + MAX_NAME + ' 个字：「' + s.slice(0, 16) + '…」', 'list' + i); }));
+    const people = new Map(); /* key → {name, mask, forms:Set} */
+    const dupWithin = [[], [], []];
+    const order = [];
+    raw.forEach((L, i) => {
+      const seen = new Set();
+      L.forEach((s) => {
+        const k = normKey(s, ignoreCase);
+        if (seen.has(k)) { dupWithin[i].push(s); return; }
+        seen.add(k);
+        let p = people.get(k);
+        if (!p) { p = { name: s, mask: 0, forms: new Set() }; people.set(k, p); order.push(k); }
+        p.mask |= (1 << i);
+        p.forms.add(s);
+      });
+    });
+    const regions = { 7: 0, 3: 0, 5: 0, 6: 0, 1: 0, 2: 0, 4: 0 };
+    const members = { 7: [], 3: [], 5: [], 6: [], 1: [], 2: [], 4: [] };
+    const roster = order.map((k) => people.get(k));
+    roster.forEach((p) => { regions[p.mask]++; members[p.mask].push(p.name); });
+    const sizes = [1, 2, 4].map((bit) => roster.filter((p) => p.mask & bit).length);
+    const pair = (m) => roster.filter((p) => (p.mask & m) === m).length;
+    const counts = { A: sizes[0], B: sizes[1], C: sizes[2], AB: pair(3), AC: pair(5), BC: pair(6), t: regions[7] };
+    const S = sizes[0] + sizes[1] + sizes[2];
+    const union = roster.length;
+    const merged = roster.filter((p) => p.forms.size > 1).map((p) => Array.from(p.forms));
+    const res = { mode: 'lists', names: N, ok: true, exact: true, ignoreCase, raw: raw.map((L) => L.length), dupWithin, merged, regions, members, roster, counts, sum: S, union };
+    res.summary = '三份合起来 ' + fmt(union) + ' 个不同的人';
+    const facts = [];
+    facts.push('三份各自去掉表内重复后是 ' + sizes.map((n, i) => N[i] + ' ' + fmt(n)).join('、') + '，相加 ' + fmt(S) + '，比合起来的人数多 ' + fmt(S - union) + '，多出来的是同一个人在两三份里被重复算的次数');
+    const dw = dupWithin.map((d, i) => d.length ? N[i] + '表内重复 ' + d.length + ' 行' : '').filter(Boolean);
+    if (dw.length) facts.push(dw.join('，') + '（已只算一次）');
+    if (merged.length) facts.push(merged.length + ' 个人在不同名单里写法不一样，按' + (ignoreCase ? '不分大小写、' : '') + '全角半角统一后算作同一人：' + merged.slice(0, 3).map((f) => f.join(' = ')).join('；') + (merged.length > 3 ? ' 等' : ''));
+    facts.push('正好只在一份的 ' + fmt(regions[1] + regions[2] + regions[4]) + ' 人，正好在两份的 ' + fmt(regions[3] + regions[5] + regions[6]) + ' 人，三份都在的 ' + fmt(regions[7]) + ' 人');
+    const b = boundsT(counts);
+    if (b.hi > b.lo) facts.push('如果只知道三份人数和两两重叠、不知道三份都在的有几人，合起来只能说在 ' + fmt(union - regions[7] + b.lo) + '–' + fmt(union - regions[7] + b.hi) + ' 人之间');
+    res.facts = facts;
+    res.onlyCountsRange = { lo: union - regions[7] + b.lo, hi: union - regions[7] + b.hi, tLo: b.lo, tHi: b.hi };
+    return res;
+  }
+
+  function calculate(inp) { return inp && inp.mode === 'lists' ? fromLists(inp) : fromCounts(inp); }
+
+  /* 七块读数（用于图与表）：确定时一个数，范围时「lo–hi」 */
+  function regionText(r, m) {
+    if (!r.ok) return '?';
+    if (r.regions) return fmt(r.regions[m]);
+    const a = r.regionsLo[m], b = r.regionsHi[m];
+    return a === b ? fmt(a) : fmt(Math.min(a, b)) + '–' + fmt(Math.max(a, b));
+  }
+  const FORMULA = { 7: 't', 3: 'AB − t', 5: 'AC − t', 6: 'BC − t', 1: 'A − AB − AC + t', 2: 'B − AB − BC + t', 4: 'C − AC − BC + t' };
+  function tableRows(r) {
+    return ORDER.map((m) => {
+      const row = [regionLabel(m, r.names), regionText(r, m)];
+      if (r.mode === 'lists') {
+        const list = r.members[m];
+        row.push(list.length ? list.slice(0, 8).join('、') + (list.length > 8 ? ' 等 ' + list.length + ' 人' : '') : '—');
+      } else row.push(FORMULA[m]);
+      return row;
+    });
+  }
+  function tableHead(r) { return ['哪一块', '人数', r.mode === 'lists' ? '是谁' : '怎么算']; }
+
+  /* 能作用于输入的建议：{text, apply?: {counts 片段 | mode 切换}} */
+  function suggestions(r) {
+    const N = r.names;
+    const out = [];
+    if (r.mode === 'lists') {
+      const c = r.counts;
+      out.push({ kind: 'toCounts', text: '把这三份的人数和两两重叠带到「只有人数」页（三份都在的留空），看只知道人数时能说到多准：' + fmt(r.onlyCountsRange.lo) + (r.onlyCountsRange.hi > r.onlyCountsRange.lo ? '–' + fmt(r.onlyCountsRange.hi) : '') + ' 人', apply: { mode: 'counts', counts: { A: c.A, B: c.B, C: c.C, AB: c.AB, AC: c.AC, BC: c.BC, t: '' } } });
+      if (r.merged.length && r.ignoreCase) out.push({ kind: 'caseOn', text: '如果大小写不同的其实是两个人，关掉「不分大小写」重算', apply: { ignoreCase: false } });
+      if (!r.ignoreCase) out.push({ kind: 'caseOff', text: '打开「不分大小写」，把 Amy 和 amy 当成同一人重算', apply: { ignoreCase: true } });
+      return out;
+    }
+    const x = r.input;
+    if (!r.ok) {
+      r.fixes.moves.forEach((f) => {
+        const counts = Object.assign({}, x, { [f.v]: f.to });
+        if (counts.t == null) counts.t = '';
+        out.push({ kind: 'fix-' + f.v, text: '只改' + f.label + '：' + fmt(f.from) + ' → ' + fmt(f.to) + '（' + (f.delta > 0 ? '多 ' : '少 ') + fmt(Math.abs(f.delta)) + ' 人；其他数不动时它' + (f.hi >= MAX_N ? '至少要 ' + fmt(f.lo) : f.hi > f.lo ? '能填 ' + fmt(f.lo) + '–' + fmt(f.hi) : '只能是 ' + fmt(f.lo)) + '）', apply: { counts } });
+      });
+      r.fixes.clear.forEach(() => {
+        out.push({ kind: 'clearT', text: '先把「三份都在」清空：其余六个数是对得上的，看合起来的范围', apply: { counts: Object.assign({}, x, { t: '' }) } });
+      });
+      const imp = r.fixes.impossible, nVars = x.t == null ? 6 : 7;
+      if (imp.length) out.push({ kind: 'note', text: imp.length === nVars - r.fixes.moves.length ? (r.fixes.moves.length ? '除了上面这几个，单独改别的任何一个数都对不上' : '单独改任何一个数都对不上，至少要同时改两个') : '单改 ' + imp.join('、') + ' 都对不上' });
+      return out;
+    }
+    const b = r.bounds;
+    if (x.t == null && !r.exact) {
+      out.push({ kind: 'tLo', text: '假设三份都在的最少（' + fmt(b.lo) + ' 人）：合起来 ' + fmt(r.unionLo) + ' 人，是最少的情况', apply: { counts: Object.assign({}, x, { t: b.lo }) } });
+      out.push({ kind: 'tHi', text: '假设三份都在的最多（' + fmt(b.hi) + ' 人）：合起来 ' + fmt(r.unionHi) + ' 人，是最多的情况', apply: { counts: Object.assign({}, x, { t: b.hi }) } });
+      out.push({ kind: 'note', text: '想要一个准数，只差一件事：数一下三个都在的有几人（或者把名单贴到「贴名单」页）' });
+    } else if (x.t != null) {
+      out.push({ kind: 'clearT', text: '不确定三份都在的有几人？清空它，看合起来可能在什么范围（现在这组数允许 ' + fmt(b.lo) + '–' + fmt(b.hi) + '）', apply: { counts: Object.assign({}, x, { t: '' }) } });
+    }
+    return out;
+  }
+  function suggestionTexts(r) { return suggestions(r).map((s) => s.text); }
+
+  function csvCell(v) { const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+  function toCSV(r, stamp) {
+    const L = [];
+    L.push(['合三份名单', stamp].map(csvCell).join(','));
+    L.push(['结论', r.summary].map(csvCell).join(','));
+    if (r.mode === 'counts') {
+      const x = r.input;
+      L.push(['输入', r.names[0] + ' ' + x.A, r.names[1] + ' ' + x.B, r.names[2] + ' ' + x.C, 'AB ' + x.AB, 'AC ' + x.AC, 'BC ' + x.BC, '三份都在 ' + (x.t == null ? '不知道' : x.t)].map(csvCell).join(','));
+    }
+    r.facts.forEach((f) => L.push(['说明', f].map(csvCell).join(',')));
+    if (r.ok) { L.push(tableHead(r).map(csvCell).join(',')); tableRows(r).forEach((row) => L.push(row.map(csvCell).join(','))); }
+    suggestionTexts(r).forEach((t) => L.push(['建议', t].map(csvCell).join(',')));
+    if (r.mode === 'lists') {
+      L.push('');
+      L.push(['合并后名单', r.names[0], r.names[1], r.names[2]].map(csvCell).join(','));
+      r.roster.forEach((p) => L.push([p.name, p.mask & 1 ? '在' : '', p.mask & 2 ? '在' : '', p.mask & 4 ? '在' : ''].map(csvCell).join(',')));
+    }
+    return L.join('\n') + '\n';
+  }
+  function toMD(r, stamp) {
+    const L = ['# 合三份名单', '', '生成时间：' + stamp, '', '**结论**：' + r.summary, ''];
+    r.facts.forEach((f) => L.push('- ' + f));
+    L.push('');
+    if (r.ok) {
+      const h = tableHead(r);
+      L.push('| ' + h.join(' | ') + ' |', '|' + h.map(() => '---').join('|') + '|');
+      tableRows(r).forEach((row) => L.push('| ' + row.map((v) => String(v).replace(/\|/g, '\\|')).join(' | ') + ' |'));
+      L.push('');
+    }
+    const s = suggestionTexts(r);
+    if (s.length) { L.push('**可以试试**', ''); s.forEach((t) => L.push('- ' + t)); L.push(''); }
+    if (r.mode === 'lists') L.push('合并后名单 ' + r.roster.length + ' 人：' + r.roster.map((p) => p.name).join('、'), '');
+    L.push('> 只按你给的名单或人数计算；同名不同人、同一人不同叫法无法识别。默认例子是虚构的。');
+    return L.join('\n') + '\n';
+  }
+
+  const api = { calculate, fromCounts, fromLists, boundsT, regionsAt, consistent, rangeFor, splitList, normKey, regionLabel, regionText, tableRows, tableHead, suggestions, suggestionTexts, toCSV, toMD, fmt, ORDER, VARS, MAX_N, MAX_LINES };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.AppCore = api;
+})(typeof window !== 'undefined' ? window : this);
+
+  </script>
+  <script>
+/* 合三份名单 · 界面层 */
+(function () {
+  'use strict';
+  const C = window.AppCore;
+  const KEY = 'merge-three-lists:v1';
+  const DEF_LISTS = {
+    names: ['周六徒步', '读书会', '桌游夜'],
+    lists: [
+      '阿青\n小满\nKiki\n老周\n山竹\n木木\n阿青\n大熊\n番茄\n星河\n糯米(北)',
+      '小满\n老周\n木木\n橙子\n白桃\nkiki\n阿哲\n星河\n雨落',
+      '老周\n山竹\n橙子\n阿哲\n星河\n糯米（北）\n豆豆\n夏夏'
+    ],
+    ignoreCase: true
+  };
+  const DEF_COUNTS = { names: ['读书群', '跑步群', '亲子群'], counts: { A: 120, B: 95, C: 60, AB: 40, AC: 25, BC: 18, t: '' } };
+  const DEFAULT = { mode: 'counts', lists: DEF_LISTS, counts: DEF_COUNTS };
+  const PRESETS = {
+    counts: [
+      ['默认：三个群，三个都在的不知道', DEF_COUNTS],
+      ['三个都在的知道了', { names: ['读书群', '跑步群', '亲子群'], counts: { A: 120, B: 95, C: 60, AB: 40, AC: 25, BC: 18, t: 12 } }],
+      ['只有两份', { names: ['A 渠道报名', 'B 渠道报名', '没有第三份'], counts: { A: 340, B: 210, C: 0, AB: 75, AC: 0, BC: 0, t: '' } }],
+      ['数字对不上', { names: ['一班', '二班', '兴趣课'], counts: { A: 45, B: 42, C: 30, AB: 3, AC: 28, BC: 25, t: '' } }]
+    ],
+    lists: [['默认：三场活动的签到', DEF_LISTS]]
+  };
+  const FILL = { 1: '#d9ece9', 2: '#e7e3f3', 4: '#f6e6d4' };
+  const $ = (id) => document.getElementById(id);
+  let state = JSON.parse(JSON.stringify(DEFAULT));
+  let last = null;
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const CF = ['A', 'B', 'C', 'AB', 'AC', 'BC', 't'];
+
+  function cur() { return state.mode === 'lists' ? state.lists : state.counts; }
+  function writeInputs() {
+    const s = cur();
+    [0, 1, 2].forEach((i) => { $('name' + i).value = s.names[i]; });
+    if (state.mode === 'lists') { [0, 1, 2].forEach((i) => { $('list' + i).value = s.lists[i]; }); $('ignoreCase').checked = s.ignoreCase !== false; }
+    else CF.forEach((k) => { $(k).value = s.counts[k] == null ? '' : s.counts[k]; });
+    labels();
+  }
+  function readInputs() {
+    const names = [0, 1, 2].map((i) => $('name' + i).value);
+    if (state.mode === 'lists') state.lists = { names, lists: [0, 1, 2].map((i) => $('list' + i).value), ignoreCase: $('ignoreCase').checked };
+    else { const counts = {}; CF.forEach((k) => { counts[k] = $(k).value; }); state.counts = { names, counts }; }
+  }
+  function labels() {
+    [0, 1, 2].forEach((i) => {
+      const n = $('name' + i).value.trim() || ('第 ' + (i + 1) + ' 份');
+      $('lbl' + i).textContent = n;
+      document.querySelectorAll('.ln' + i).forEach((e) => { e.textContent = n; });
+      $('cnt' + i).textContent = state.mode === 'lists' ? '（' + C.splitList($('list' + i).value).length + ' 行）' : '';
+    });
+  }
+  function showMode() {
+    $('tabLists').classList.toggle('on', state.mode === 'lists');
+    $('tabCounts').classList.toggle('on', state.mode === 'counts');
+    $('paneLists').style.display = state.mode === 'lists' ? '' : 'none';
+    $('paneCounts').style.display = state.mode === 'counts' ? '' : 'none';
+    const box = $('presets'); box.innerHTML = '';
+    PRESETS[state.mode].forEach((p) => {
+      const b = document.createElement('button'); b.className = 'ghost'; b.textContent = p[0];
+      b.addEventListener('click', () => { state[state.mode] = JSON.parse(JSON.stringify(p[1])); writeInputs(); run(); });
+      box.appendChild(b);
+    });
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* 隐私模式忽略 */ } }
+  function load() {
+    try {
+      const o = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (!o || typeof o !== 'object' || (o.mode !== 'lists' && o.mode !== 'counts')) return null;
+      const okL = o.lists && Array.isArray(o.lists.names) && Array.isArray(o.lists.lists) && o.lists.lists.length === 3;
+      const okC = o.counts && Array.isArray(o.counts.names) && o.counts.counts && typeof o.counts.counts === 'object';
+      if (!okL || !okC) return null;
+      C.calculate(o.mode === 'lists' ? Object.assign({ mode: 'lists' }, o.lists) : Object.assign({ mode: 'counts' }, o.counts));
+      return o;
+    } catch (e) { return null; }
+  }
+
+  function vennSVG(r) {
+    const P = { A: [160, 150], B: [280, 150], C: [220, 250] }, R = 110;
+    const N = r.names;
+    const pos = { 1: [110, 120], 2: [330, 120], 4: [220, 320], 3: [220, 110], 5: [158, 228], 6: [282, 228], 7: [220, 182] };
+    let s = '';
+    [['A', 1], ['B', 2], ['C', 4]].forEach(([k, m]) => { s += '<circle cx="' + P[k][0] + '" cy="' + P[k][1] + '" r="' + R + '" fill="' + FILL[m] + '" fill-opacity="0.75" stroke="#7a8b88" stroke-width="1.5"/>'; });
+    const short = (n) => n.length > 7 ? n.slice(0, 6) + '…' : n;
+    s += '<text x="20" y="26" font-size="15" fill="#2f5f5a" font-weight="700"><title>' + esc(N[0]) + '</title>' + esc(short(N[0])) + '</text>';
+    s += '<text x="420" y="26" font-size="15" fill="#4f4383" font-weight="700" text-anchor="end"><title>' + esc(N[1]) + '</title>' + esc(short(N[1])) + '</text>';
+    s += '<text x="220" y="392" font-size="15" fill="#8a5a24" font-weight="700" text-anchor="middle"><title>' + esc(N[2]) + '</title>' + esc(short(N[2])) + '</text>';
+    C.ORDER.forEach((m) => {
+      const t = C.regionText(r, m);
+      const parts = t.length > 7 && t.indexOf('–') > 0 ? [t.slice(0, t.indexOf('–') + 1), t.slice(t.indexOf('–') + 1)] : [t];
+      const L = Math.max.apply(null, parts.map((q) => q.length));
+      const fs = L > 9 ? 14 : L > 6 ? 17 : 20;
+      const x0 = pos[m][0], y0 = pos[m][1] - (parts.length - 1) * fs * 0.55;
+      s += '<text x="' + x0 + '" y="' + y0 + '" font-size="' + fs + '" font-weight="700" fill="#1e2524" text-anchor="middle" dominant-baseline="middle" data-m="' + m + '">' + parts.map((q, i) => '<tspan x="' + x0 + '" dy="' + (i ? fs * 1.1 : 0) + '">' + esc(q) + '</tspan>').join('') + '</text>';
+    });
+    return s;
+  }
+
+  function render(r) {
+    $('summary').textContent = r.summary;
+    $('summary').className = r.ok ? '' : 'bad';
+    $('facts').innerHTML = r.facts.map((f) => '<li>' + esc(f) + '</li>').join('');
+    $('figure').style.display = r.ok ? '' : 'none';
+    if (r.ok) {
+      $('venn').innerHTML = vennSVG(r);
+      $('regions').querySelector('thead tr').innerHTML = C.tableHead(r).map((h) => '<th>' + h + '</th>').join('');
+      $('regions').querySelector('tbody').innerHTML = C.tableRows(r).map((row, k) => {
+        const m = C.ORDER[k];
+        const sw = m === 7 ? '#b9c4c1' : (FILL[m] || '#cfd8d5');
+        return '<tr>' + row.map((v, j) => '<td>' + (j === 0 ? '<span class="sw" style="background:' + sw + '"></span>' : '') + (j === 1 ? esc(v).replace('–', '–<wbr>') : esc(v)) + '</td>').join('') + '</tr>';
+      }).join('');
+      $('tblnote').textContent = r.mode === 'counts' ? 'A、B、C 是三份人数，AB、AC、BC 是两两都在（含三份都在），t 是三份都在。' + (r.regions ? '' : '三份都在的没填，所以每块都是范围，七块一起随它变。') : '每一块里的名字按第一次出现的写法列出。';
+    }
+    const ul = $('sugs'); ul.innerHTML = '';
+    const sg = C.suggestions(r);
+    $('sugCard').style.display = sg.length ? '' : 'none';
+    sg.forEach((sc) => {
+      const li = document.createElement('li');
+      li.innerHTML = '<span></span>' + (sc.apply ? '<button class="ghost" data-kind="' + sc.kind + '">照这个改</button>' : '');
+      li.querySelector('span').textContent = sc.text;
+      if (sc.apply) li.querySelector('button').addEventListener('click', () => applySug(sc.apply));
+      ul.appendChild(li);
+    });
+    $('rosterCard').style.display = r.mode === 'lists' ? '' : 'none';
+    if (r.mode === 'lists') $('roster').textContent = r.roster.length + ' 人：' + r.roster.map((p) => p.name).join('、');
+  }
+  function applySug(a) {
+    if (a.mode === 'counts') {
+      state.counts = { names: state.lists.names.slice(), counts: Object.assign({}, a.counts) };
+      state.mode = 'counts'; showMode();
+    } else if (a.ignoreCase != null) state.lists.ignoreCase = a.ignoreCase;
+    else if (a.counts) { const c = Object.assign({}, a.counts); if (c.t == null) c.t = ''; state.counts.counts = c; }
+    writeInputs(); run();
+  }
+
+  function run() {
+    document.querySelectorAll('.bad').forEach((e) => { if (e.id !== 'summary') e.classList.remove('bad'); });
+    readInputs(); labels();
+    const inp = state.mode === 'lists' ? Object.assign({ mode: 'lists' }, state.lists) : Object.assign({ mode: 'counts' }, state.counts);
+    try {
+      const r = C.calculate(inp);
+      last = r;
+      $('error').style.display = 'none';
+      $('out').style.display = '';
+      render(r);
+      if (!r.ok) {
+        const vs = new Set();
+        r.fixes.moves.forEach((f) => vs.add(f.v));
+        if (!vs.size) CF.forEach((k) => vs.add(k));
+        vs.forEach((k) => $(k).classList.add('bad'));
+      }
+      save();
+    } catch (e) {
+      last = null;
+      if (e.field && $(e.field)) $(e.field).classList.add('bad');
+      $('error').textContent = '算不了：' + e.message; $('error').style.display = 'block';
+      $('out').style.display = 'none';
+    }
+  }
+
+  /* ── 导出 ── */
+  function stamp() { const d = new Date(), z = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
+  function download(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+  function wrap(g, t, w) {
+    const NOHEAD = '，。、；：！？）」』%';
+    const out = []; let line = '';
+    const toks = String(t).match(/[0-9][0-9,.–]*|[A-Za-z]+|[\s\S]/g) || [];
+    for (const ch of toks) {
+      if (g.measureText(line + ch).width > w && line) {
+        if (NOHEAD.indexOf(ch) >= 0) { const l = line.slice(-1); out.push(line.slice(0, -1)); line = l + ch; } else { out.push(line); line = ch.replace(/^\s+/, ''); }
+      } else line += ch;
+    }
+    if (line) out.push(line); return out;
+  }
+  function fitText(g, t, w, size, F, bold) {
+    let s = size; g.font = (bold ? 'bold ' : '') + s + 'px ' + F;
+    while (g.measureText(t).width > w && s > 12) { s--; g.font = (bold ? 'bold ' : '') + s + 'px ' + F; }
+    return s;
+  }
+  function drawPNG(r) {
+    const W = 1080, H = 1350;
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const g = cv.getContext('2d'); const F = '"PingFang SC","Microsoft YaHei",sans-serif';
+    g.fillStyle = '#f2f4f1'; g.fillRect(0, 0, W, H); g.fillStyle = '#fff'; g.fillRect(50, 50, 980, 1250);
+    g.fillStyle = '#5b6462'; g.font = '30px ' + F; g.fillText('合三份名单', 100, 118);
+    g.font = '22px ' + F;
+    const head = r.mode === 'lists' ? '贴名单 · ' + r.names.join(' / ') : '只有人数 · ' + r.names.map((n, i) => n + ' ' + C.fmt(r.input[['A', 'B', 'C'][i]])).join(' / ');
+    wrap(g, head, 880).slice(0, 2).forEach((l, i) => g.fillText(l, 100, 158 + i * 30));
+    g.fillStyle = r.ok ? '#1f5b57' : '#9a3b1c'; g.font = 'bold 46px ' + F;
+    let y = 250; wrap(g, r.summary, 880).slice(0, 2).forEach((l) => { g.fillText(l, 100, y); y += 60; });
+    if (r.ok) {
+      /* 三圈 */
+      const ox = 100, oy = y + 10, k = 1.25;
+      const P = [[160, 150, 1], [280, 150, 2], [220, 250, 4]];
+      P.forEach(([x, yy, m]) => { g.beginPath(); g.arc(ox + x * k, oy + yy * k, 110 * k, 0, Math.PI * 2); g.globalAlpha = 0.75; g.fillStyle = FILL[m]; g.fill(); g.globalAlpha = 1; g.strokeStyle = '#7a8b88'; g.lineWidth = 2; g.stroke(); });
+      const pos = { 1: [110, 120], 2: [330, 120], 4: [220, 320], 3: [220, 110], 5: [158, 228], 6: [282, 228], 7: [220, 182] };
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#1e2524';
+      C.ORDER.forEach((m) => {
+        const t = C.regionText(r, m), wmax = m === 7 ? 100 : 130;
+        g.font = 'bold 30px ' + F;
+        const parts = g.measureText(t).width > wmax && t.indexOf('–') > 0 ? [t.slice(0, t.indexOf('–') + 1), t.slice(t.indexOf('–') + 1)] : [t];
+        let fs = 30; parts.forEach((q) => { fs = Math.min(fs, fitText(g, q, wmax, 30, F, true)); }); g.font = 'bold ' + fs + 'px ' + F;
+        parts.forEach((q, i) => g.fillText(q, ox + pos[m][0] * k, oy + pos[m][1] * k + (i - (parts.length - 1) / 2) * fs * 1.15));
+      });
+      g.font = 'bold 22px ' + F;
+      g.fillStyle = '#2f5f5a'; fitText(g, r.names[0], 150, 22, F, true); g.fillText(r.names[0], ox + 90 * k, oy + 15 * k);
+      g.fillStyle = '#4f4383'; fitText(g, r.names[1], 150, 22, F, true); g.fillText(r.names[1], ox + 350 * k, oy + 15 * k);
+      g.fillStyle = '#8a5a24'; fitText(g, r.names[2], 150, 22, F, true); g.fillText(r.names[2], ox + 220 * k, oy + 382 * k);
+      g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+      /* 右侧：七块数字 */
+      let ry = oy + 30; const rx = 680;
+      g.fillStyle = '#5b6462'; g.font = '22px ' + F; g.fillText('七块各几人', rx, ry); ry += 40;
+      const SN = r.names.map((n) => n.length > 5 ? n.slice(0, 4) + '…' : n);
+      C.ORDER.forEach((m) => {
+        const lab = C.regionLabel(m, SN), num = C.regionText(r, m);
+        g.fillStyle = '#434b4a'; fitText(g, lab, 190, 21, F, false); g.fillText(lab, rx, ry);
+        g.fillStyle = '#1e2524'; g.textAlign = 'right'; fitText(g, num, 120, 22, F, true);
+        if (g.measureText(num).width > 120 || num.length > 9) { const i = num.indexOf('–'); fitText(g, num, 300, 20, F, true); g.fillText(num, 990, ry + 24); ry += 24; }
+        else g.fillText(num, 990, ry);
+        g.textAlign = 'left';
+        ry += 44;
+      });
+      y = oy + 410 * k + 20;
+    } else y += 10;
+    g.fillStyle = '#2a2724'; g.font = '24px ' + F;
+    const items = r.facts.concat(C.suggestionTexts(r).filter((t) => !/^想要|^除了|^单/.test(t)).map((t) => '→ ' + t));
+    for (const t of items) {
+      const ls = wrap(g, (t.startsWith('→') ? '' : '· ') + t, 860);
+      if (y + ls.length * 36 > 1225) break;
+      ls.forEach((l) => { g.fillText(l, 100, y); y += 36; });
+      y += 8;
+    }
+    g.fillStyle = '#7a8381'; g.font = '20px ' + F;
+    g.fillText('只按你给的名单或人数计算，认不出同名不同人；圈的大小不按人数画。', 100, 1258);
+    return cv;
+  }
+  function backup() {
+    return { app: '合三份名单', version: 1, savedAt: stamp(), state: JSON.parse(JSON.stringify(state)),
+      result: { mode: last.mode, ok: last.ok, summary: last.summary, facts: last.facts, union: last.union, unionLo: last.unionLo, unionHi: last.unionHi, regions: last.regions || null, roster: last.mode === 'lists' ? last.roster.map((p) => ({ name: p.name, in: [1, 2, 4].map((b) => !!(p.mask & b)) })) : undefined } };
+  }
+
+  function init() {
+    $('tabLists').addEventListener('click', () => { readInputs(); state.mode = 'lists'; showMode(); writeInputs(); run(); });
+    $('tabCounts').addEventListener('click', () => { readInputs(); state.mode = 'counts'; showMode(); writeInputs(); run(); });
+    ['name0', 'name1', 'name2', 'list0', 'list1', 'list2'].concat(CF).forEach((id) => $(id).addEventListener('input', run));
+    $('ignoreCase').addEventListener('change', run);
+    $('reset').addEventListener('click', () => { const m = state.mode; state = JSON.parse(JSON.stringify(DEFAULT)); state.mode = m; showMode(); writeInputs(); run(); });
+    $('dlCSV').addEventListener('click', () => { if (last) download('合三份名单.csv', new Blob(['\ufeff' + C.toCSV(last, stamp())], { type: 'text/csv;charset=utf-8' })); });
+    $('dlMD').addEventListener('click', () => { if (last) download('合三份名单.md', new Blob([C.toMD(last, stamp())], { type: 'text/markdown;charset=utf-8' })); });
+    $('dlJSON').addEventListener('click', () => { if (last) download('合三份名单-备份.json', new Blob([JSON.stringify(backup(), null, 2)], { type: 'application/json' })); });
+    $('dlPNG').addEventListener('click', () => { if (last) drawPNG(last).toBlob((b) => download('合三份名单-1080x1350.png', b), 'image/png'); });
+    state = load() || JSON.parse(JSON.stringify(DEFAULT));
+    showMode(); writeInputs(); run();
+    window.__m3 = { last: () => last, state: () => state };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+
+  </script>
+</body>
+</html>
